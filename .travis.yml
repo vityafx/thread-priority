@@ -5,6 +5,7 @@ rust:
 os:
   - linux
   - windows
+  - macos
 dist: xenial
 cache:
   cargo: true

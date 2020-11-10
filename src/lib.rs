@@ -7,21 +7,25 @@
 //! ```rust
 //! use thread_priority::*;
 //!
-//! assert!(set_current_thread_priority(ThreadPriority::Min).is_ok());
+//! let result = set_current_thread_priority(ThreadPriority::Min);
 //! // Or like this:
-//! assert!(ThreadPriority::Min.set_for_current().is_ok());
+//! let result = ThreadPriority::Min.set_for_current();
 //! ```
 #![warn(missing_docs)]
 #![deny(warnings)]
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 pub mod unix;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 pub use unix::*;
 #[cfg(windows)]
 pub mod windows;
 #[cfg(windows)]
 pub use windows::*;
+#[cfg(target_os = "macos")]
+pub mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::*;
 
 /// A error type
 #[derive(Debug, Copy, Clone)]
@@ -33,6 +37,8 @@ pub enum Error {
     OS(i32),
     /// FFI failure
     Ffi(&'static str),
+    /// Attempt to probe values on an platform which is not supported (macOS..)
+    UnsupportedPlatform(),
 }
 
 /// Thread priority enumeration.
@@ -54,6 +60,16 @@ pub enum ThreadPriority {
 
 impl ThreadPriority {
     /// Sets current thread's priority to this value.
+    ///
+    ///
+    /// # Usage
+    ///
+    /// ```rust
+    /// use thread_priority::*;
+    ///
+    /// // Ignore the response- we just keep going even if priority changes on a given platform are not supported (macOS)
+    /// let _ = set_current_thread_priority(ThreadPriority::Max);
+    /// ```
     pub fn set_for_current(self) -> Result<(), Error> {
         set_current_thread_priority(self)
     }
@@ -69,14 +85,14 @@ pub struct Thread {
 }
 
 impl Thread {
-    /// Get current thread.
+    /// Get current thread as a platform-independent structure
     ///
     /// # Usage
     ///
     /// ```rust
     /// use thread_priority::*;
     ///
-    /// assert!(Thread::current().is_ok());
+    /// let thread = Thread::current();
     /// ```
     pub fn current() -> Result<Thread, Error> {
         Ok(Thread {
